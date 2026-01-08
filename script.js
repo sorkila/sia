@@ -1,14 +1,53 @@
 // Initialize elements
 let chatMessages, userInput, sendButton;
 
+// Avatar state management
+let typingTimeout = null;
+function setAvatarFocused(isFocused) {
+    const avatar = document.querySelector('.welcome-character-image');
+    if (avatar) {
+        if (isFocused) {
+            avatar.classList.add('focused');
+        } else {
+            avatar.classList.remove('focused');
+        }
+    }
+}
+
+// Handle user typing detection
+function handleUserTyping() {
+    setAvatarFocused(true);
+    
+    // Clear existing timeout
+    if (typingTimeout) {
+        clearTimeout(typingTimeout);
+    }
+    
+    // Remove focused state after user stops typing for 1 second
+    typingTimeout = setTimeout(() => {
+        // Only remove if not processing
+        const typingIndicator = document.getElementById('typingIndicator');
+        const thinkingProcess = document.getElementById('thinkingProcess');
+        if (!typingIndicator && !thinkingProcess) {
+            setAvatarFocused(false);
+        }
+    }, 1000);
+}
+
 function animateTextStream(element, text, callback) {
     let currentIndex = 0;
     let isInTag = false;
     let tagBuffer = '';
     let displayText = '';
     
+    setAvatarFocused(true);
+    
     const stream = () => {
         if (currentIndex >= text.length) {
+            // Small delay before removing focused state
+            setTimeout(() => {
+                setAvatarFocused(false);
+            }, 300);
             if (callback) callback();
             return;
         }
@@ -73,8 +112,12 @@ function addSystemMessage(text) {
     
     // Hide welcome screen and suggested queries when adding a message
     const welcomeScreen = document.getElementById('welcomeScreen');
+    const chatMessages = document.getElementById('chatMessages');
     if (welcomeScreen) {
         welcomeScreen.style.display = 'none';
+    }
+    if (chatMessages) {
+        chatMessages.classList.remove('no-scroll');
     }
     const suggestedQueries = document.getElementById('suggestedQueries');
     if (suggestedQueries) {
@@ -113,8 +156,12 @@ function addMessage(text, isUser, sources = null, files = null, showGraph = fals
     
     // Hide welcome screen and suggested queries when adding a message
     const welcomeScreen = document.getElementById('welcomeScreen');
+    const chatMessages = document.getElementById('chatMessages');
     if (welcomeScreen) {
         welcomeScreen.style.display = 'none';
+    }
+    if (chatMessages) {
+        chatMessages.classList.remove('no-scroll');
     }
     const suggestedQueries = document.getElementById('suggestedQueries');
     if (suggestedQueries) {
@@ -214,6 +261,70 @@ function addMessage(text, isUser, sources = null, files = null, showGraph = fals
 }
 
 function addAIMessageElements(messageDiv, sources = null) {
+    // Add action toolbar (Copy, Regenerate, Export)
+    const content = messageDiv.querySelector('.message-content');
+    if (content) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'message-toolbar';
+        
+        // Copy button
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'toolbar-button';
+        copyBtn.setAttribute('aria-label', 'Copy');
+        copyBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span class="toolbar-tooltip">Copy</span>
+        `;
+        copyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            copyMessageContent(content);
+        });
+        
+        // Regenerate button
+        const regenerateBtn = document.createElement('button');
+        regenerateBtn.className = 'toolbar-button';
+        regenerateBtn.setAttribute('aria-label', 'Regenerate');
+        regenerateBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            <span class="toolbar-tooltip">Regenerate</span>
+        `;
+        regenerateBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            regenerateMessage(messageDiv);
+        });
+        
+        // Export to PDF button
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'toolbar-button';
+        exportBtn.setAttribute('aria-label', 'Export to PDF');
+        exportBtn.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <span class="toolbar-tooltip">Export PDF</span>
+        `;
+        exportBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportToPDF(content);
+        });
+        
+        toolbar.appendChild(copyBtn);
+        toolbar.appendChild(regenerateBtn);
+        toolbar.appendChild(exportBtn);
+        content.appendChild(toolbar);
+    }
+    
     // Add feedback buttons
     const feedbackDiv = document.createElement('div');
     feedbackDiv.className = 'message-feedback';
@@ -332,6 +443,97 @@ function addAIMessageElements(messageDiv, sources = null) {
     }
 }
 
+function copyMessageContent(content) {
+    const text = content.querySelector('p');
+    if (!text) return;
+    
+    // Get text content, removing HTML tags but preserving structure
+    const textContent = text.innerText || text.textContent;
+    
+    navigator.clipboard.writeText(textContent).then(() => {
+        // Show feedback
+        const button = content.querySelector('.toolbar-button');
+        if (button) {
+            const originalHTML = button.innerHTML;
+            button.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span class="toolbar-tooltip">Copied!</span>
+            `;
+            setTimeout(() => {
+                button.innerHTML = originalHTML;
+            }, 2000);
+        }
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+
+function regenerateMessage(messageDiv) {
+    // Get the original message text
+    const content = messageDiv.querySelector('.message-content p');
+    if (!content) return;
+    
+    const messageText = content.innerText || content.textContent;
+    
+    // Show thinking process and regenerate
+    const steps = [
+        'Regenerating response...',
+        'Refining content...',
+        'Finalizing...'
+    ];
+    
+    // Remove old message
+    messageDiv.style.transition = 'opacity 0.2s ease-out';
+    messageDiv.style.opacity = '0';
+    
+    setTimeout(() => {
+        messageDiv.remove();
+        showThinkingProcess(steps, messageText, null, false);
+    }, 200);
+}
+
+function exportToPDF(content) {
+    const text = content.querySelector('p');
+    if (!text) return;
+    
+    const textContent = text.innerText || text.textContent;
+    const htmlContent = text.innerHTML;
+    
+    // Create a new window with the content
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Export - Sia</title>
+            <style>
+                body {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    padding: 40px;
+                    line-height: 1.6;
+                    color: #1a1a1a;
+                }
+                h1 { font-size: 24px; margin-bottom: 20px; }
+                p { margin-bottom: 12px; }
+                strong { font-weight: 600; }
+            </style>
+        </head>
+        <body>
+            <h1>Sia - AI Response</h1>
+            <div>${htmlContent}</div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+        printWindow.print();
+    }, 250);
+}
+
 function handleFeedbackClick(button, isHelpful) {
     // Add press animation class
     button.classList.add('pressed');
@@ -396,6 +598,8 @@ function showTypingIndicator() {
     const messages = document.getElementById('chatMessages');
     if (!messages) return;
     
+    setAvatarFocused(true);
+    
     const typingDiv = document.createElement('div');
     typingDiv.className = 'message ai typing-message';
     typingDiv.id = 'typingIndicator';
@@ -420,6 +624,11 @@ function removeTypingIndicator() {
     const typingIndicator = document.getElementById('typingIndicator');
     if (typingIndicator) {
         typingIndicator.remove();
+    }
+    // Check if there's still processing happening
+    const thinkingProcess = document.getElementById('thinkingProcess');
+    if (!thinkingProcess) {
+        setAvatarFocused(false);
     }
 }
 
@@ -598,6 +807,8 @@ function showThinkingProcess(steps, finalResponse, sources = null, showGraph = f
     // Reset stop flag
     isThinkingStopped = false;
     
+    setAvatarFocused(true);
+    
     // Clear any existing timeouts
     thinkingTimeouts.forEach(timeout => clearTimeout(timeout));
     thinkingTimeouts = [];
@@ -659,8 +870,11 @@ function showThinkingProcess(steps, finalResponse, sources = null, showGraph = f
             thinkingDiv.style.opacity = '0';
             setTimeout(() => {
                 thinkingDiv.remove();
+                // Keep focused state during text streaming
                 addMessage(finalResponse, false, sources, null, showGraph);
             }, 200);
+        } else {
+            setAvatarFocused(false);
         }
         thinkingTimeouts = [];
     }, stepDelay + 800);
@@ -881,6 +1095,7 @@ function sendMessage() {
     
     if (button) {
         button.disabled = true;
+        button.classList.remove('active');
     }
     
     console.log('Simulating AI response');
@@ -913,9 +1128,13 @@ const agentButton = document.getElementById('agentButton');
 const agentPopover = document.getElementById('agentPopover');
 const agentOptions = document.querySelectorAll('.agent-option');
 
-// Set initial selected agent
+// Set initial selected agent and update switcher name
 if (agentOptions.length > 0) {
     agentOptions[0].classList.add('selected');
+    const switcherName = document.getElementById('agentSwitcherName');
+    if (switcherName) {
+        switcherName.textContent = 'General';
+    }
 }
 
 if (agentButton && agentPopover) {
@@ -938,6 +1157,19 @@ if (agentButton && agentPopover) {
         }
     });
     
+    // Update chevron rotation when popover opens/closes
+    const observer = new MutationObserver(() => {
+        const chevron = agentButton.querySelector('.agent-switcher-chevron');
+        if (chevron) {
+            if (agentPopover.classList.contains('show')) {
+                chevron.style.transform = 'rotate(180deg)';
+            } else {
+                chevron.style.transform = 'rotate(0deg)';
+            }
+        }
+    });
+    observer.observe(agentPopover, { attributes: true, attributeFilter: ['class'] });
+    
     // Handle agent selection
     agentOptions.forEach(option => {
         option.addEventListener('click', (e) => {
@@ -955,6 +1187,21 @@ if (agentButton && agentPopover) {
             
             // Update current agent
             currentAgent = agentId;
+            
+            // Update switcher name
+            const switcherName = document.getElementById('agentSwitcherName');
+            if (switcherName) {
+                switcherName.textContent = agentName;
+            }
+            
+            // Update switcher avatar (in a real implementation, each agent would have their own avatar)
+            const switcherAvatar = document.getElementById('agentSwitcherAvatar');
+            if (switcherAvatar) {
+                // For now, use the same avatar for all agents
+                // In production, you'd map agentId to specific avatar paths
+                switcherAvatar.src = 'sia-character.png';
+                switcherAvatar.style.display = 'block';
+            }
             
             // Close popover
             agentPopover.classList.remove('show');
@@ -982,8 +1229,8 @@ if (agentButton && agentPopover) {
     });
 }
 
-// Handle attachment button
-const attachmentButton = document.querySelector('.attachment-button');
+// Handle attachment button (both inline and in action bar)
+const attachmentButton = document.querySelector('.attachment-button-inline');
 const fileInput = document.getElementById('fileInput');
 if (attachmentButton && fileInput) {
     attachmentButton.addEventListener('click', () => {
@@ -1006,6 +1253,19 @@ const productsButton = document.getElementById('productsButton');
 const productsPopover = document.getElementById('productsPopover');
 const productOptions = document.querySelectorAll('.product-option');
 
+// Function to show products popover
+function showProductsPopover() {
+    if (!productsPopover) return;
+    
+    // Close agent popover if open
+    const agentPopover = document.getElementById('agentPopover');
+    if (agentPopover && agentPopover.classList.contains('show')) {
+        agentPopover.classList.remove('show');
+    }
+    
+    productsPopover.classList.add('show');
+}
+
 if (productsButton && productsPopover) {
     const productsWrapper = productsButton.closest('.products-selector-wrapper');
     
@@ -1017,12 +1277,7 @@ if (productsButton && productsPopover) {
         if (isShowing) {
             productsPopover.classList.remove('show');
         } else {
-            // Close agent popover if open
-            const agentPopover = document.getElementById('agentPopover');
-            if (agentPopover && agentPopover.classList.contains('show')) {
-                agentPopover.classList.remove('show');
-            }
-            productsPopover.classList.add('show');
+            showProductsPopover();
         }
     });
     
@@ -1059,6 +1314,12 @@ if (productsButton && productsPopover) {
             // Close popover
             productsPopover.classList.remove('show');
             
+            // Clear / from input if it starts with /
+            const input = document.getElementById('userInput');
+            if (input && input.value.startsWith('/')) {
+                input.value = '';
+            }
+            
             console.log(`Switched to product: ${productName}`);
             // In a real implementation, this would update the product context
         });
@@ -1067,6 +1328,11 @@ if (productsButton && productsPopover) {
     // Close popover when clicking outside
     document.addEventListener('click', (e) => {
         if (productsWrapper && !productsWrapper.contains(e.target)) {
+            // Don't close if clicking on input field
+            const input = document.getElementById('userInput');
+            if (input && input.contains(e.target)) {
+                return;
+            }
             productsPopover.classList.remove('show');
         }
     });
@@ -1145,6 +1411,20 @@ function setupChat() {
     
     // Set up input field
     input.addEventListener('keydown', function(e) {
+        // Handle Cmd+K or Ctrl+K to show products popover
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            showProductsPopover();
+            return;
+        }
+        
+        // Handle / command
+        if (e.key === '/' && input.value === '') {
+            e.preventDefault();
+            showProductsPopover();
+            return;
+        }
+        
         if (e.key === 'Enter' && !e.shiftKey) {
             console.log('=== ENTER KEY PRESSED ===');
             e.preventDefault();
@@ -1156,12 +1436,45 @@ function setupChat() {
         }
     }, true);
     
+    // Handle / command while typing
+    input.addEventListener('input', function(e) {
+        if (input.value === '/') {
+            showProductsPopover();
+        } else if (input.value.length > 1 && input.value[0] === '/') {
+            // Keep popover open while typing after /
+            if (productsPopover && !productsPopover.classList.contains('show')) {
+                showProductsPopover();
+            }
+        } else if (input.value.length === 0 || input.value[0] !== '/') {
+            // Close popover if / is removed
+            if (productsPopover && productsPopover.classList.contains('show')) {
+                productsPopover.classList.remove('show');
+            }
+        }
+    });
+    
     input.addEventListener('input', function() {
-        button.disabled = !input.value.trim();
+        const hasText = input.value.trim().length > 0;
+        button.disabled = !hasText;
+        
+        // Toggle active state for send button
+        if (hasText) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+        
+        handleUserTyping();
     });
     
     // Set initial button state
-    button.disabled = !input.value.trim();
+    const hasText = input.value.trim().length > 0;
+    button.disabled = !hasText;
+    if (hasText) {
+        button.classList.add('active');
+    } else {
+        button.classList.remove('active');
+    }
     
     // Handle suggested queries
     messages.addEventListener('click', function(e) {
@@ -1187,9 +1500,23 @@ function setupChat() {
 }
 
 // Try to set up immediately
+// Set no-scroll class when welcome screen is visible
+function updateWelcomeScreenScroll() {
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const chatMessages = document.getElementById('chatMessages');
+    if (welcomeScreen && chatMessages) {
+        if (welcomeScreen.style.display !== 'none' && welcomeScreen.offsetParent !== null) {
+            chatMessages.classList.add('no-scroll');
+        } else {
+            chatMessages.classList.remove('no-scroll');
+        }
+    }
+}
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOMContentLoaded fired');
+        updateWelcomeScreenScroll();
         setupChat();
     });
 } else {
