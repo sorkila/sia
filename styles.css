@@ -183,7 +183,7 @@ body::after {
 .agent-top-bar-title {
     font-size: 16px;
     font-weight: 600;
-    color: #000000;
+    color: #2a2a2a;
     letter-spacing: -0.01em;
     flex-shrink: 0;
     background: transparent;
@@ -1141,7 +1141,7 @@ body::after {
     font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
     font-size: 30px;
     font-weight: 600;
-    color: #000000;
+    color: #2a2a2a;
     margin: 4px 0 8px 0;
     letter-spacing: -0.03em;
     line-height: 1.3;
