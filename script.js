@@ -255,6 +255,10 @@ function addMessage(text, isUser, sources = null, files = null, showGraph = fals
                         scrollToBottom();
                     }, 50);
                 }, 100);
+                // Update placeholder to follow-up text after AI response
+                setTimeout(() => {
+                    setFollowUpPlaceholder();
+                }, 300);
             });
         }, 100);
     });
@@ -1128,12 +1132,18 @@ const agentButton = document.getElementById('agentButton');
 const agentPopover = document.getElementById('agentPopover');
 const agentOptions = document.querySelectorAll('.agent-option');
 
-// Set initial selected agent and update switcher name
+// Set initial selected agent and update switcher name and icon
 if (agentOptions.length > 0) {
     agentOptions[0].classList.add('selected');
     const switcherName = document.getElementById('agentSwitcherName');
     if (switcherName) {
         switcherName.textContent = 'General';
+    }
+    // Set initial icon
+    const switcherIcon = document.getElementById('agentSwitcherIcon');
+    const initialIcon = agentOptions[0].querySelector('.agent-option-icon svg');
+    if (switcherIcon && initialIcon) {
+        switcherIcon.innerHTML = initialIcon.outerHTML;
     }
 }
 
@@ -1157,14 +1167,20 @@ if (agentButton && agentPopover) {
         }
     });
     
-    // Update chevron rotation when popover opens/closes
+    // Update chevron rotation and wrapper state when popover opens/closes
     const observer = new MutationObserver(() => {
         const chevron = agentButton.querySelector('.agent-switcher-chevron');
         if (chevron) {
             if (agentPopover.classList.contains('show')) {
                 chevron.style.transform = 'rotate(180deg)';
+                if (agentWrapper) {
+                    agentWrapper.classList.add('popover-open');
+                }
             } else {
                 chevron.style.transform = 'rotate(0deg)';
+                if (agentWrapper) {
+                    agentWrapper.classList.remove('popover-open');
+                }
             }
         }
     });
@@ -1194,13 +1210,15 @@ if (agentButton && agentPopover) {
                 switcherName.textContent = agentName;
             }
             
-            // Update switcher avatar (in a real implementation, each agent would have their own avatar)
-            const switcherAvatar = document.getElementById('agentSwitcherAvatar');
-            if (switcherAvatar) {
-                // For now, use the same avatar for all agents
-                // In production, you'd map agentId to specific avatar paths
-                switcherAvatar.src = 'sia-character.png';
-                switcherAvatar.style.display = 'block';
+            // Update switcher icon to match selected agent
+            const switcherIcon = document.getElementById('agentSwitcherIcon');
+            if (switcherIcon) {
+                // Get the icon from the selected option
+                const selectedIcon = option.querySelector('.agent-option-icon svg');
+                if (selectedIcon) {
+                    // Clone the SVG and update the switcher icon
+                    switcherIcon.innerHTML = selectedIcon.outerHTML;
+                }
             }
             
             // Close popover
@@ -1378,6 +1396,11 @@ function setupChat() {
         return false;
     }
     
+    // Add scroll listener for gradient overlay
+    messages.addEventListener('scroll', updateScrollState);
+    // Check initial scroll state
+    updateScrollState();
+    
     console.log('Setting up event handlers...');
     
     // Remove any existing handlers first
@@ -1513,11 +1536,24 @@ function updateWelcomeScreenScroll() {
     }
 }
 
+// Update scroll state for gradient overlay
+function updateScrollState() {
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        if (chatMessages.scrollTop > 10) {
+            chatMessages.classList.add('scrolled');
+        } else {
+            chatMessages.classList.remove('scrolled');
+        }
+    }
+}
+
 // Dynamic placeholder with typewriter effect
 let placeholderTimeout = null;
 let placeholderIndex = 0;
 let isTypingPlaceholder = false;
 let placeholderCharIndex = 0;
+let placeholderAnimationDisabled = false;
 
 const placeholderSuggestions = [
     "Ask about vacation policy...",
@@ -1533,6 +1569,11 @@ const placeholderSuggestions = [
 function updatePlaceholder() {
     const input = document.getElementById('userInput');
     if (!input) return;
+    
+    // Don't animate if animation is disabled (after bot response)
+    if (placeholderAnimationDisabled) {
+        return;
+    }
     
     // Don't animate if user is focused or has typed
     if (document.activeElement === input || input.value.length > 0) {
@@ -1576,6 +1617,22 @@ function updatePlaceholder() {
     }
 }
 
+function setFollowUpPlaceholder() {
+    const input = document.getElementById('userInput');
+    if (!input) return;
+    
+    // Stop any ongoing animation completely
+    if (placeholderTimeout) {
+        clearTimeout(placeholderTimeout);
+        placeholderTimeout = null;
+    }
+    isTypingPlaceholder = false;
+    placeholderAnimationDisabled = true;
+    
+    // Set the static follow-up placeholder
+    input.placeholder = 'Ask for follow up...';
+}
+
 function startPlaceholderAnimation() {
     const input = document.getElementById('userInput');
     if (!input) return;
@@ -1590,9 +1647,9 @@ function startPlaceholderAnimation() {
         input.placeholder = '';
     });
     
-    // Restart animation when user blurs (if input is empty)
+    // Restart animation when user blurs (if input is empty and animation not disabled)
     input.addEventListener('blur', () => {
-        if (input.value.length === 0) {
+        if (input.value.length === 0 && !placeholderAnimationDisabled) {
             placeholderIndex = (placeholderIndex + 1) % placeholderSuggestions.length;
             placeholderTimeout = setTimeout(updatePlaceholder, 500);
         }
@@ -1607,8 +1664,8 @@ function startPlaceholderAnimation() {
             }
             isTypingPlaceholder = false;
             input.placeholder = '';
-        } else if (document.activeElement !== input) {
-            // Restart if input is cleared and not focused
+        } else if (document.activeElement !== input && !placeholderAnimationDisabled) {
+            // Restart if input is cleared and not focused (and animation not disabled)
             placeholderTimeout = setTimeout(updatePlaceholder, 500);
         }
     });
@@ -1646,6 +1703,16 @@ function setupSiaHomeButton() {
                 
                 // Update scroll state
                 updateWelcomeScreenScroll();
+                
+                // Re-enable placeholder animation when returning to welcome screen
+                placeholderAnimationDisabled = false;
+                const input = document.getElementById('userInput');
+                if (input && input.value.length === 0) {
+                    placeholderIndex = 0;
+                    setTimeout(() => {
+                        updatePlaceholder();
+                    }, 500);
+                }
             }
         });
     }
