@@ -1513,15 +1513,157 @@ function updateWelcomeScreenScroll() {
     }
 }
 
+// Dynamic placeholder with typewriter effect
+let placeholderTimeout = null;
+let placeholderIndex = 0;
+let isTypingPlaceholder = false;
+let placeholderCharIndex = 0;
+
+const placeholderSuggestions = [
+    "Ask about vacation policy...",
+    "How do I give feedback?",
+    "What are our benefits?",
+    "Help me draft a job description...",
+    "Show me performance review tips...",
+    "What's the onboarding process?",
+    "How do I request time off?",
+    "Explain our company culture..."
+];
+
+function updatePlaceholder() {
+    const input = document.getElementById('userInput');
+    if (!input) return;
+    
+    // Don't animate if user is focused or has typed
+    if (document.activeElement === input || input.value.length > 0) {
+        return;
+    }
+    
+    const currentSuggestion = placeholderSuggestions[placeholderIndex];
+    
+    if (!isTypingPlaceholder) {
+        // Start typing out the current suggestion
+        isTypingPlaceholder = true;
+        placeholderCharIndex = 0;
+        input.placeholder = '';
+        
+        const typeNextChar = () => {
+            if (document.activeElement === input || input.value.length > 0) {
+                isTypingPlaceholder = false;
+                return;
+            }
+            
+            if (placeholderCharIndex < currentSuggestion.length) {
+                input.placeholder = currentSuggestion.substring(0, placeholderCharIndex + 1);
+                placeholderCharIndex++;
+                placeholderTimeout = setTimeout(typeNextChar, 50); // Typing speed
+            } else {
+                // Finished typing, wait then fade to next
+                isTypingPlaceholder = false;
+                placeholderTimeout = setTimeout(() => {
+                    // Fade out
+                    input.style.transition = 'opacity 0.3s ease';
+                    placeholderIndex = (placeholderIndex + 1) % placeholderSuggestions.length;
+                    placeholderTimeout = setTimeout(() => {
+                        input.style.transition = '';
+                        updatePlaceholder();
+                    }, 300);
+                }, 2000); // Wait 2 seconds before moving to next
+            }
+        };
+        
+        typeNextChar();
+    }
+}
+
+function startPlaceholderAnimation() {
+    const input = document.getElementById('userInput');
+    if (!input) return;
+    
+    // Stop animation when user focuses
+    input.addEventListener('focus', () => {
+        if (placeholderTimeout) {
+            clearTimeout(placeholderTimeout);
+            placeholderTimeout = null;
+        }
+        isTypingPlaceholder = false;
+        input.placeholder = '';
+    });
+    
+    // Restart animation when user blurs (if input is empty)
+    input.addEventListener('blur', () => {
+        if (input.value.length === 0) {
+            placeholderIndex = (placeholderIndex + 1) % placeholderSuggestions.length;
+            placeholderTimeout = setTimeout(updatePlaceholder, 500);
+        }
+    });
+    
+    // Stop animation when user types
+    input.addEventListener('input', () => {
+        if (input.value.length > 0) {
+            if (placeholderTimeout) {
+                clearTimeout(placeholderTimeout);
+                placeholderTimeout = null;
+            }
+            isTypingPlaceholder = false;
+            input.placeholder = '';
+        } else if (document.activeElement !== input) {
+            // Restart if input is cleared and not focused
+            placeholderTimeout = setTimeout(updatePlaceholder, 500);
+        }
+    });
+    
+    // Start the animation
+    updatePlaceholder();
+}
+
+// Handle clicking "Sia" to return to home/welcome screen
+function setupSiaHomeButton() {
+    const siaHomeButton = document.getElementById('siaHomeButton');
+    if (siaHomeButton) {
+        siaHomeButton.addEventListener('click', () => {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            const suggestedQueries = document.getElementById('suggestedQueries');
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // Show welcome screen and suggested queries
+            if (welcomeScreen) {
+                welcomeScreen.style.display = 'flex';
+            }
+            if (suggestedQueries) {
+                suggestedQueries.style.display = 'flex';
+            }
+            
+            // Clear chat messages (remove all message divs, keep welcome screen)
+            if (chatMessages) {
+                const messages = chatMessages.querySelectorAll('.message:not(.welcome-screen)');
+                messages.forEach(msg => {
+                    msg.remove();
+                });
+                
+                // Scroll to top
+                chatMessages.scrollTop = 0;
+                
+                // Update scroll state
+                updateWelcomeScreenScroll();
+            }
+        });
+    }
+}
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOMContentLoaded fired');
         updateWelcomeScreenScroll();
         setupChat();
+        setupSiaHomeButton();
+        startPlaceholderAnimation();
     });
 } else {
     console.log('DOM already ready, setting up...');
     setupChat();
+    setupSiaHomeButton();
+    startPlaceholderAnimation();
 }
 
     // Also try after a delay as fallback
@@ -1531,8 +1673,10 @@ if (document.readyState === 'loading') {
         if (!input || !button) {
             console.log('Retrying setup after delay...');
             setupChat();
+            setupSiaHomeButton();
         } else {
             console.log('Elements already found, setup should be complete');
+            setupSiaHomeButton();
         }
     }, 100);
     

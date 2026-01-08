@@ -14,7 +14,7 @@
         <div class="chat-container">
             <div class="agent-top-bar">
                 <div class="agent-top-bar-content">
-                    <div class="agent-top-bar-title">Sia</div>
+                    <button type="button" class="agent-top-bar-title" id="siaHomeButton" aria-label="Return to home">Sia</button>
                     <div class="agent-selector-wrapper">
                         <button type="button" class="agent-switcher" aria-label="Select AI agent archetype" title="Select AI agent archetype" id="agentButton">
                             <img src="sia-character.png" alt="Agent" class="agent-switcher-avatar" id="agentSwitcherAvatar" onerror="this.style.display='none';" />
@@ -100,7 +100,7 @@
                 <input 
                     type="text" 
                     id="userInput" 
-                    placeholder="Ask anything... (Type / to switch products)" 
+                    placeholder="" 
                     autocomplete="off"
                 />
                 <button type="button" id="sendButton" class="send-button" aria-label="Send">
