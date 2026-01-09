@@ -963,7 +963,7 @@ body::after {
 }
 
 .welcome-character {
-    margin: 0 0 12px 0;
+    margin: 0 0 8px 0;
     display: flex;
     justify-content: center;
     align-items: center;
