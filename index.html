@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sia Playground</title>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,8 @@
 </head>
 <body>
     <div class="app-container">
-        <div class="chat-container">
+        <!-- Header Container - Separate floating container -->
+        <div class="header-container">
             <div class="agent-top-bar">
                 <div class="agent-top-bar-content">
                     <button type="button" class="agent-top-bar-title" id="siaHomeButton" aria-label="Return to home">Sia</button>
@@ -29,7 +30,7 @@
                                 <polyline points="6 9 12 15 18 9"></polyline>
                             </svg>
                         </button>
-                    <div class="agent-popover" id="agentPopover">
+                        <div class="agent-popover" id="agentPopover">
                         <div class="agent-popover-header">
                             <span>Switch Sia's focus area</span>
                         </div>
@@ -98,10 +99,22 @@
                                 </div>
                             </button>
                         </div>
+                        </div>
                     </div>
-                </div>
+                    <button type="button" class="header-toggle" id="headerToggle" aria-label="Toggle chat">
+                        <svg class="chevron-down" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                        <svg class="chevron-up" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="18 15 12 9 6 15"></polyline>
+                        </svg>
+                    </button>
                 </div>
             </div>
+        </div>
+        
+        <!-- Chat Container - Separate floating container -->
+        <div class="chat-container">
             <div class="chat-messages" id="chatMessages">
                 <div class="welcome-screen" id="welcomeScreen">
                     <div class="welcome-character">
@@ -128,10 +141,12 @@
             </div>
         </div>
         
-        <div class="action-bar">
+        <!-- Input Container - Separate floating container -->
+        <div class="input-container">
+            <div class="action-bar">
             <div class="action-bar-input">
                 <button class="attachment-button-inline" aria-label="Attach file" title="Attach file" type="button">
-                    <img src="paperclip-1.svg" alt="Attach" />
+                    <img src="assets/paperclip-1.svg" alt="Attach" />
                 </button>
                 <div class="input-divider"></div>
                 <input 
@@ -150,7 +165,7 @@
             <div class="action-bar-buttons">
                 <div class="products-selector-wrapper">
                     <button type="button" class="products-button" id="productsButton" aria-label="Select product" style="display: none;">
-                        <img src="api-aggregate.svg" alt="Products" />
+                        <img src="assets/api-aggregate.svg" alt="Products" />
                         <span>All products</span>
                     </button>
                     <div class="products-popover" id="productsPopover">
@@ -160,27 +175,27 @@
                         <div class="products-popover-list">
                             <button type="button" class="product-option" data-product="hrm-one" data-product-name="HRM One">
                                 <div class="product-option-content">
-                                    <img src="user-circle.svg" alt="HRM One" class="product-option-icon" />
+                                        <img src="assets/user-circle.svg" alt="HRM One" class="product-option-icon" />
                                     <div class="product-option-name">HRM One</div>
                                 </div>
                                 <div class="product-option-check">✓</div>
                             </button>
                             <button type="button" class="product-option" data-product="handbooks" data-product-name="Handbooks">
                                 <div class="product-option-content">
-                                    <img src="books.svg" alt="Handbooks" class="product-option-icon" />
+                                        <img src="assets/books.svg" alt="Handbooks" class="product-option-icon" />
                                     <div class="product-option-name">Handbooks</div>
                                 </div>
                             </button>
                             <button type="button" class="product-option" data-product="expert" data-product-name="Expert">
                                 <div class="product-option-content">
-                                    <img src="light-bulb.svg" alt="Expert" class="product-option-icon" />
+                                        <img src="assets/light-bulb.svg" alt="Expert" class="product-option-icon" />
                                     <div class="product-option-name">Expert</div>
                                 </div>
                             </button>
                             <div class="products-popover-divider"></div>
                             <button type="button" class="product-option product-option-selected" data-product="all" data-product-name="All products">
                                 <div class="product-option-content">
-                                    <img src="api-aggregate.svg" alt="All products" class="product-option-icon" />
+                                        <img src="assets/api-aggregate.svg" alt="All products" class="product-option-icon" />
                                     <div class="product-option-name">All products</div>
                                 </div>
                                 <div class="product-option-check">✓</div>
@@ -190,6 +205,14 @@
                 </div>
                 <input type="file" id="fileInput" style="display: none;" multiple>
             </div>
+        </div>
+        </div>
+        
+        <div class="bottom-navigation">
+            <nav class="nav-links">
+                <a href="index.html" class="nav-link active" data-page="conversation">Conversation</a>
+                <a href="agent-overlay.html" class="nav-link" data-page="overlay">Overlay</a>
+            </nav>
         </div>
     </div>
     <script src="script.js"></script>

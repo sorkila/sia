@@ -112,9 +112,13 @@ function addSystemMessage(text) {
     
     // Hide welcome screen and suggested queries when adding a message
     const welcomeScreen = document.getElementById('welcomeScreen');
+    const siaWelcomeScreen = document.getElementById('siaWelcomeScreen');
     const chatMessages = document.getElementById('chatMessages');
     if (welcomeScreen) {
         welcomeScreen.style.display = 'none';
+    }
+    if (siaWelcomeScreen) {
+        siaWelcomeScreen.style.display = 'none';
     }
     if (chatMessages) {
         chatMessages.classList.remove('no-scroll');
@@ -156,9 +160,13 @@ function addMessage(text, isUser, sources = null, files = null, showGraph = fals
     
     // Hide welcome screen and suggested queries when adding a message
     const welcomeScreen = document.getElementById('welcomeScreen');
+    const siaWelcomeScreen = document.getElementById('siaWelcomeScreen');
     const chatMessages = document.getElementById('chatMessages');
     if (welcomeScreen) {
         welcomeScreen.style.display = 'none';
+    }
+    if (siaWelcomeScreen) {
+        siaWelcomeScreen.style.display = 'none';
     }
     if (chatMessages) {
         chatMessages.classList.remove('no-scroll');
@@ -338,7 +346,7 @@ function addAIMessageElements(messageDiv, sources = null) {
     thumbsUp.className = 'feedback-button thumbs-up';
     thumbsUp.setAttribute('aria-label', 'Thumbs up');
     const thumbsUpImg = document.createElement('img');
-    thumbsUpImg.src = 'thumbs-up.svg';
+    thumbsUpImg.src = 'assets/thumbs-up.svg';
     thumbsUpImg.alt = 'Thumbs up';
     thumbsUp.appendChild(thumbsUpImg);
     
@@ -357,7 +365,7 @@ function addAIMessageElements(messageDiv, sources = null) {
     thumbsDown.className = 'feedback-button thumbs-down';
     thumbsDown.setAttribute('aria-label', 'Thumbs down');
     const thumbsDownImg = document.createElement('img');
-    thumbsDownImg.src = 'thumbs-down.svg';
+    thumbsDownImg.src = 'assets/thumbs-down.svg';
     thumbsDownImg.alt = 'Thumbs down';
     thumbsDown.appendChild(thumbsDownImg);
     
@@ -1370,13 +1378,97 @@ if (agentButton && agentPopover) {
         
         if (isShowing) {
             agentPopover.classList.remove('show');
+            agentPopover.classList.remove('open-above');
+            agentPopover.style.top = '';
+            agentPopover.style.right = '';
+            agentPopover.style.left = '';
+            agentPopover.style.bottom = '';
         } else {
             // Close products popover if open
             const productsPopover = document.getElementById('productsPopover');
             if (productsPopover && productsPopover.classList.contains('show')) {
                 productsPopover.classList.remove('show');
             }
+            
+            // Move popover to body to escape stacking contexts
+            if (agentPopover.parentElement !== document.body) {
+                document.body.appendChild(agentPopover);
+            }
+            
+            // Check if we're on the overlay page (collapsed or expanded)
+            const chatOverlayContainer = document.getElementById('chatOverlayContainer');
+            const isOnOverlayPage = chatOverlayContainer !== null;
+            
+            // Calculate position before showing
+            const buttonRect = agentButton.getBoundingClientRect();
+            const gap = 8; // Gap between button and popover
+            
+            // Temporarily show popover to measure its height
+            agentPopover.style.visibility = 'hidden';
+            agentPopover.style.opacity = '0';
+            agentPopover.style.display = 'block';
+            const popoverHeight = agentPopover.offsetHeight;
+            agentPopover.style.display = '';
+            agentPopover.style.visibility = '';
+            agentPopover.style.opacity = '';
+            
+            // Calculate available space
+            const spaceBelow = window.innerHeight - buttonRect.bottom - window.scrollY;
+            const spaceAbove = buttonRect.top - window.scrollY;
+            
+            // Function to set right alignment - align popover right edge with button right edge
+            const setRightAlignment = () => {
+                const currentButtonRect = agentButton.getBoundingClientRect();
+                // Align right edge of popover with right edge of button
+                // Using left positioning: button right edge - popover width
+                const popoverWidth = 280;
+                const leftPosition = currentButtonRect.right - popoverWidth;
+                agentPopover.style.left = leftPosition + 'px';
+                agentPopover.style.right = 'auto';
+            };
+            
+            agentPopover.style.width = '280px'; // Ensure consistent width
+            
+            if (isOnOverlayPage) {
+                // On overlay page, check available space
+                if (spaceBelow >= popoverHeight + gap) {
+                    // Enough space below, open below
+                    agentPopover.style.top = (buttonRect.bottom + window.scrollY + gap) + 'px';
+                    agentPopover.style.bottom = 'auto';
+                    agentPopover.classList.remove('open-above');
+                } else if (spaceAbove >= popoverHeight + gap) {
+                    // Not enough space below, but enough above, open above
+                    agentPopover.style.bottom = (window.innerHeight - buttonRect.top + window.scrollY + gap) + 'px';
+                    agentPopover.style.top = 'auto';
+                    agentPopover.classList.add('open-above');
+                } else {
+                    // Default to above if not enough space in either direction
+                    agentPopover.style.bottom = (window.innerHeight - buttonRect.top + window.scrollY + gap) + 'px';
+                    agentPopover.style.top = 'auto';
+                    agentPopover.classList.add('open-above');
+                }
+                // Set right alignment after all positioning is done
+                setRightAlignment();
+            } else {
+                // Open below the button normally on conversation page
+                agentPopover.style.top = (buttonRect.bottom + window.scrollY + gap) + 'px';
+                agentPopover.style.bottom = 'auto';
+                agentPopover.classList.remove('open-above');
+                setRightAlignment();
+            }
+            
             agentPopover.classList.add('show');
+            
+            // Recalculate alignment after popover is shown to ensure accuracy
+            requestAnimationFrame(() => {
+                setRightAlignment();
+                // Double-check after a brief delay for overlay page
+                if (isOnOverlayPage) {
+                    setTimeout(() => {
+                        setRightAlignment();
+                    }, 50);
+                }
+            });
         }
     });
     
@@ -1398,6 +1490,19 @@ if (agentButton && agentPopover) {
         }
     });
     observer.observe(agentPopover, { attributes: true, attributeFilter: ['class'] });
+    
+    // Recalculate popover position on window resize to maintain right alignment
+    window.addEventListener('resize', () => {
+        if (agentPopover.classList.contains('show')) {
+            requestAnimationFrame(() => {
+                const buttonRect = agentButton.getBoundingClientRect();
+                const popoverWidth = 280;
+                const leftPosition = buttonRect.right - popoverWidth;
+                agentPopover.style.left = leftPosition + 'px';
+                agentPopover.style.right = 'auto';
+            });
+        }
+    });
     
     // Handle agent selection
     agentOptions.forEach(option => {
@@ -1834,6 +1939,10 @@ function setFollowUpPlaceholder() {
     const input = document.getElementById('userInput');
     if (!input) return;
     
+    // Check if we're on the Agent Overlay page
+    const isOverlayPage = window.location.pathname.includes('agent-overlay.html') || 
+                         document.querySelector('.chat-overlay') !== null;
+    
     // Stop any ongoing animation completely
     if (placeholderTimeout) {
         clearTimeout(placeholderTimeout);
@@ -1844,11 +1953,27 @@ function setFollowUpPlaceholder() {
     
     // Set the static follow-up placeholder
     input.placeholder = 'Ask for follow up...';
+    
+    // On overlay page, always keep it disabled
+    if (isOverlayPage) {
+        return;
+    }
 }
 
 function startPlaceholderAnimation() {
     const input = document.getElementById('userInput');
     if (!input) return;
+    
+    // Check if we're on the Agent Overlay page
+    const isOverlayPage = window.location.pathname.includes('agent-overlay.html') || 
+                         document.querySelector('.chat-overlay') !== null;
+    
+    if (isOverlayPage) {
+        // On overlay page, just set static placeholder
+        input.placeholder = 'Ask for follow up...';
+        placeholderAnimationDisabled = true;
+        return;
+    }
     
     // Stop animation when user focuses
     input.addEventListener('focus', () => {
@@ -1931,6 +2056,28 @@ function setupSiaHomeButton() {
     }
 }
 
+// Header toggle functionality
+function setupHeaderToggle() {
+    const headerToggle = document.getElementById('headerToggle');
+    const headerContainer = document.querySelector('.header-container');
+    const chatContainer = document.querySelector('.chat-container');
+    const inputContainer = document.querySelector('.input-container');
+    
+    if (headerToggle && headerContainer) {
+        headerToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            headerContainer.classList.toggle('collapsed');
+            
+            if (chatContainer) {
+                chatContainer.classList.toggle('collapsed');
+            }
+            if (inputContainer) {
+                inputContainer.classList.toggle('collapsed');
+            }
+        });
+    }
+}
+
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOMContentLoaded fired');
@@ -1938,7 +2085,24 @@ if (document.readyState === 'loading') {
         setupChat();
         setupSiaHomeButton();
         startPlaceholderAnimation();
+        setupNavigation();
+        setupHeaderToggle();
     });
+
+    // Set active navigation link based on current page
+    function setupNavigation() {
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        const navLinks = document.querySelectorAll('.nav-link');
+        
+        navLinks.forEach(link => {
+            const linkPage = link.getAttribute('href');
+            if (linkPage === currentPage || (currentPage === '' && linkPage === 'index.html')) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
+        });
+    }
 } else {
     console.log('DOM already ready, setting up...');
     setupChat();
